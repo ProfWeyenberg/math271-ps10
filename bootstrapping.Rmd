@@ -1,0 +1,110 @@
+---
+title: "Bootstrapping"
+author: "Math 271"
+date: "3/10/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(magrittr)
+library(moderndive)
+library(purrr)
+library(ggplot2)
+
+```
+
+
+```{r}
+bind_group <- function(data, .id="run"){
+  data %>% bind_rows(.id=.id) %>% group_by(.data[[.id]], .add=TRUE)
+}
+```
+
+
+## Exploration
+
+From `moderndive` package, `pennies_sample` is contents of a roll of pennies from a bank 
+    + 50 pennies
+    + an `ID` number and a `year` minted
+
+```{r}
+pennies_sample
+pennies_sample %>% summarize(year=mean(year))
+ggplot(pennies_sample) + aes(x=year) + geom_histogram(center=0, binwidth=5)
+```
+
+Simulate getting new samples? (Without getting more pennies...)
+
+Make many "copies" of your sample. Sample from copies.
+
+```{r}
+rerun(100, pennies_sample) %>% bind_rows
+rerun(100, pennies_sample) %>% bind_rows %>% slice_sample(n=50) %>% summarize(mean(year))
+
+```
+
+Or: sample __with replacement__ from your original sample.
+
+Same as creating "infinitely" many copies in previous idea.
+
+```{r}
+pennies_sample %>% slice_sample(prop=1, replace=TRUE) %>% summarize(mean(year))
+```
+
+See effect of sampling on `mean(year)`, get many resamples.
+
+```{r}
+penny_means <- rerun(1000, pennies_sample %>% slice_sample(prop=1, replace=TRUE)) %>% 
+  bind_group(.id="sample") %>% 
+  summarize(mean_year= mean(year))
+
+ggplot(penny_means) + aes(x=mean_year) + geom_histogram(center=0, binwidth=1) + 
+  xlim(1985, 2005) + geom_vline(xintercept=1995, color="red") + 
+  geom_vline(xintercept=c(1992, 1999), col="blue")
+
+```
+Numerical summaries of estimated sampling distribution for `mean(year)`.
+
+Also, quantiles from the sampling distribution
+
+Quantiles from matching normal distribution
+
+```{r}
+(penny_ci <- penny_means %>% summarize(min=min(mean_year), max=max(mean_year), 
+                                       mean=mean(mean_year), sd=sd(mean_year), 
+                                       level=0.95, 
+                                       p = c( (1-level)/2, (1+level)/2),
+                                       perc = quantile(mean_year, p), 
+                                       norm = qnorm(p, mean, sd)))
+```
+Use as __confidence intervals__ 
+    + "confidence" is `level` that the mean of population is inside
+    + "confidence" = This method will produce a "correct" interval  with at least `level` chance
+    + "correct" = the population mean is inside
+
+```{r}
+ggplot(penny_means) + aes(x=mean_year) + geom_histogram(aes(y=..density..), center=0, binwidth=1) + 
+  xlim(1985, 2005) + geom_vline(xintercept=1995, color="red") + 
+  geom_vline(xintercept=c(1992, 1999), col="blue") + geom_density() + 
+  #geom_function(fun=function(x) dnorm(x, mean=1995.49, sd=2.22), col="purple")
+  geom_function(fun=dnorm, args=list(mean=1995.49, sd=2.22), col="orange")
+
+ggplot(penny_means) + aes(x=mean_year) + geom_histogram(aes(y=..density..), center=0, binwidth=1) + 
+  geom_function(fun=dnorm, args=list(mean=1995.49, sd=2.22), col="orange") + 
+  geom_vline(aes(xintercept=value, color=type), data=penny_ci %>% pivot_longer(perc|norm, names_to="type"))
+
+```
+
+
+Three types of CI: two-sided interval, lower-bound, upper-bound
+
+How to compute two-sided lookups `(1-level)/2` and `(1+level)/2`
+
+Digression: [Anonymous] Functions, pipelines 
+
+New R 4.1 language features: Native pipe `|>` and lambdas `\(args){body}`
+
+The `mythbusters_yawn` question
+
