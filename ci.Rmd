@@ -15,6 +15,7 @@ library(ggplot2)
 
 ```
 
+
 ```{r bootstrap}
 
 bind_group <- function(data, .id="run"){
@@ -25,16 +26,141 @@ bootstrap_means <- rerun(1000, pennies_sample %>% slice_sample(prop=1, replace=T
   bind_group(.id="sample") %>% 
   summarize(mean_year= mean(year))
 
-ggplot(bootstrap_means) + aes(x=mean_year) + geom_histogram(center=0, binwidth=1) + 
-  xlim(1985, 2005)
+(mean_hist <- ggplot(bootstrap_means) + aes(x=mean_year) + geom_histogram(center=0, binwidth=1) + 
+  xlim(1985, 2005))
 ```
-
+ 
 
 ### Three types of CI: two-sided interval, lower-bound, upper-bound
 
+Two-sided interval: Statement: _I'm confident that the population mean is somewhere in this range of numbers._
+
+one-sided intervals: bounds _I'm confident that the population mean is less than some number_. (upper-bound)
+
+
+probability idea: percentiles (quantiles)  0%-100% vs 0.0 - 1.0
+
+Percentile e.g. if someone is found in the 90th percentile, they are in the top 10%.
+
+A method to represent the upper bound:
+
+```{r}
+level = 0.90 
+
+quantile(bootstrap_means$mean_year, level)
+
+quantile(bootstrap_means$mean_year, 1.0)
+max(bootstrap_means$mean_year)
+
+mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, level), col="red")
+```
+When building confidence intervals, we are responsible for developing confidence levels, in the example above the confidence level is set to .99.
+
+NOTE: The more we increase the upper bound of our confidence interval, the less precise our statements as we put an increasing amount of data on the left side of the upper bound. 
+
+For example:
+I'm 99% "confident" that the population mean of penny minting years is less than 2000.2.
+
+"confident" = If I use this method to create an upper bound, then at least 99% of samples will produce a confidence interval that is "correct". 
+
+"correct" = The statement about the real (unknown) population mean is true. 
+
+
+#### What about a _lower-bound_?
+
+```{r}
+level = 0.90 
+
+quantile(bootstrap_means$mean_year, 1 - level)
+mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, 1 - level), col="red")
+```
+Note: A lower bound confidence level of .90 means 90% of data on right and 10% on the left. A way to do this is by taking the compliment (1 - upper bound) of the upper bound interval of .90.
+
+
 ### How to compute two-sided lookups `(1-level)/2` and `(1+level)/2`
 
+Now: (e.g.) 90% in the middle, and 10% on the "outside". (split it up evenly 5% on each side)
+
+90% confidence level -> 10% outide -> (even split) 5% on bottom and 5% on the top
+
+quantiles to lookup: 0.05 (on bottom) and 0.95 (0.05 on top)
+
+We can do this by making our "level" a vector of 0.05 an 0.95:
+```{r}
+level = c(0.05, 0.95) 
+
+quantile(bootstrap_means$mean_year, level)
+mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, level), col="red")
+```
+
+
 ### Digression: [Anonymous] Functions, pipelines 
+
+Here we are creating a function that is able to compute a confidence interval given a level (e.g. given .90, it will produce .05 and .95):
+```{r}
+
+#less efficient way:
+ci_probs <- function(level){
+lower = (1-level) / 2
+upper = (1+level) / 2
+c(lower, upper)
+}
+
+#simplified efficient method:
+ci_probs <- function(level) {
+  c(1 + (-1) * level, 
+    1 + (+1) * level) / 2
+}
+
+#Alternative method:
+ci_probs <- function(level){
+  (1 + c(-1,1) * level) / 2
+}
+
+level=0.9
+((level * c(-1,1) ) + 1) / 2
+
+#Another alt. method using magrittr package:
+ci_probs <- function(level){
+  level %>% multiply_by(c(-1,1)) %>% add(1) %>% divide_by(2)
+}
+# example showing how using a period (.) with a pipeline creates a function:
+ci_probs <- . %>% multiply_by(c(-1,1)) %>% add(1) %>% divide_by(2)
+
+
+testfun(0.90)
+
+ci_probs(0.99)
+
+```
+
+```{r}
+quantile(bootstrap_means$mean_year, ci_probs(0.90) ) 
+
+mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, ci_probs(0.99)), col="red")
+```
+
+__Function Syntax__
+```{r}
+foo <- function(x) x^2
+foo(3)
+
+#This is an anonymous function and does not need to be assigned to a variable in order to call it (note: brackets are needed to call it):
+{function(x) x^2}(5)
+
+function(x) x^2 (5)
+
+{. %>% raise_to_power(2)}(4)
+
+\(x) x^2 ## new anonymous function syntax function replaced with backslash
+
+bar <- \(x) x^2
+bar(3)
+
+{\(x) x^2}(6)
+
+```
+
 
 ### New R 4.1 language features: Native pipe `|>` and lambdas `\(args){body}`
 
@@ -77,4 +203,10 @@ qnorm(two_tail(0.95), mean=1995.44, sd=15.175/sqrt(50))
 qnorm(two_tail(0.95)) * (15.175/sqrt(50)) + 1995.44
 qt(two_tail(0.95), 49) * (15.175/sqrt(50)) + 1995.44
 ```
+
+__Stats important side note:__
+Robustness: how much does an individual data point impact the data set
+
+The min and maximum values of a data set are not very robust data points.
+
 

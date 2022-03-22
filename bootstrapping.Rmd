@@ -22,6 +22,7 @@ bind_group <- function(data, .id="run"){
 }
 ```
 
+Working through chaper 8: https://moderndive.com/8-confidence-intervals.html
 
 ## Exploration
 
@@ -40,10 +41,11 @@ Simulate getting new samples? (Without getting more pennies...)
 Make many "copies" of your sample. Sample from copies.
 
 ```{r}
-rerun(100, pennies_sample) %>% bind_rows
-rerun(100, pennies_sample) %>% bind_rows %>% slice_sample(n=50) %>% summarize(mean(year))
-
+pseudo_population <- rerun(100, pennies_sample) %>% bind_rows
+pseudo_population %>% bind_rows %>% slice_sample(n=50) %>% summarize(mean(year))
 ```
+
+#Sampling With Replacement Method 
 
 Or: sample __with replacement__ from your original sample.
 
@@ -54,6 +56,8 @@ pennies_sample %>% slice_sample(prop=1, replace=TRUE) %>% summarize(mean(year))
 ```
 
 See effect of sampling on `mean(year)`, get many resamples.
+
+This example reruns 1000 bootstrap samples:
 
 ```{r}
 penny_means <- rerun(1000, pennies_sample %>% slice_sample(prop=1, replace=TRUE)) %>% 
