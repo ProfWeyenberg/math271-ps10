@@ -1,0 +1,56 @@
+---
+title: "Confidence Intervals"
+author: "Math 271"
+date: "3/22/2022"
+output: html_document
+---
+
+
+### Three types of CI: two-sided interval, lower-bound, upper-bound
+
+### How to compute two-sided lookups `(1-level)/2` and `(1+level)/2`
+
+### Digression: [Anonymous] Functions, pipelines 
+
+### New R 4.1 language features: Native pipe `|>` and lambdas `\(args){body}`
+
+### The `mythbusters_yawn` question
+
+### Permutation test
+
+
+
+
+
+
+```{r, eval=FALSE, include=FALSE, error=TRUE}
+penny_means %>% summarize(p=c(0.025, 0.975), quantile(mean_year,p))
+
+t.test(pennies_sample$year)
+with(pennies_sample, t.test(year))
+pennies_sample %>% with(t.test(year))
+pennies_sample %$% t.test(year)
+
+pennies_sample %>% summarize(mean(year), sd(year), n())
+
+(1 + 0.95)/2
+(1 - 0.95)/2
+
+(0.95 * c(-1, 1) + 1)/2
+
+two_tail <- . %>% multiply_by(c(-1,1)) %>% add(1) %>% divide_by(2) 
+two_tail <- function(x){(x*c(-1,1) + 1)/2}
+two_tail <- \(x)(x*c(-1,1) + 1 )/2
+two_tail <- . %>% {(.*c(-1,1) + 1)/2}
+
+
+two_tail(0.95)
+
+testthat::expect_equal(two_tail(0.95), (0.95 * c(-1, 1) + 1)/2 )
+
+
+qnorm(two_tail(0.95), mean=1995.44, sd=15.175/sqrt(50))
+qnorm(two_tail(0.95)) * (15.175/sqrt(50)) + 1995.44
+qt(two_tail(0.95), 49) * (15.175/sqrt(50)) + 1995.44
+```
+

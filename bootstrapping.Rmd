@@ -97,14 +97,3 @@ ggplot(penny_means) + aes(x=mean_year) + geom_histogram(aes(y=..density..), cent
 
 ```
 
-
-Three types of CI: two-sided interval, lower-bound, upper-bound
-
-How to compute two-sided lookups `(1-level)/2` and `(1+level)/2`
-
-Digression: [Anonymous] Functions, pipelines 
-
-New R 4.1 language features: Native pipe `|>` and lambdas `\(args){body}`
-
-The `mythbusters_yawn` question
-
