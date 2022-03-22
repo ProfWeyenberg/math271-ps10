@@ -5,6 +5,30 @@ date: "3/22/2022"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(magrittr)
+library(moderndive)
+library(purrr)
+library(ggplot2)
+
+```
+
+```{r bootstrap}
+
+bind_group <- function(data, .id="run"){
+  data %>% bind_rows(.id=.id) %>% group_by(.data[[.id]], .add=TRUE)
+}
+
+bootstrap_means <- rerun(1000, pennies_sample %>% slice_sample(prop=1, replace=TRUE)) %>% 
+  bind_group(.id="sample") %>% 
+  summarize(mean_year= mean(year))
+
+ggplot(bootstrap_means) + aes(x=mean_year) + geom_histogram(center=0, binwidth=1) + 
+  xlim(1985, 2005)
+```
+
 
 ### Three types of CI: two-sided interval, lower-bound, upper-bound
 
