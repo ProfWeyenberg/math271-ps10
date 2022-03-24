@@ -45,16 +45,19 @@ Percentile e.g. if someone is found in the 90th percentile, they are in the top 
 A method to represent the upper bound:
 
 ```{r}
-level = 0.90 
+level = 0.99 
 
 quantile(bootstrap_means$mean_year, level)
 
+mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, level), col="red")
+
+
+## this was a side discussion about using max for confidence interval -----------
 quantile(bootstrap_means$mean_year, 1.0)
 max(bootstrap_means$mean_year)
-
-mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, level), col="red")
+## ----------
 ```
-When building confidence intervals, we are responsible for developing confidence levels, in the example above the confidence level is set to .99.
+When building confidence intervals, we are responsible for developing confidence levels, in the example above the confidence level is set to .99. This means that 99% of the data falls below this point, and 1% of the data falls above this point.
 
 NOTE: The more we increase the upper bound of our confidence interval, the less precise our statements as we put an increasing amount of data on the left side of the upper bound. 
 
@@ -81,7 +84,7 @@ Note: A lower bound confidence level of .90 means 90% of data on right and 10% o
 
 Now: (e.g.) 90% in the middle, and 10% on the "outside". (split it up evenly 5% on each side)
 
-90% confidence level -> 10% outide -> (even split) 5% on bottom and 5% on the top
+90% confidence level -> 10% outside -> (even split) 5% on bottom and 5% on the top
 
 quantiles to lookup: 0.05 (on bottom) and 0.95 (0.05 on top)
 
@@ -128,7 +131,7 @@ ci_probs <- function(level){
 ci_probs <- . %>% multiply_by(c(-1,1)) %>% add(1) %>% divide_by(2)
 
 
-testfun(0.90)
+ci_probs(0.90)
 
 ci_probs(0.99)
 
@@ -137,7 +140,7 @@ ci_probs(0.99)
 ```{r}
 quantile(bootstrap_means$mean_year, ci_probs(0.90) ) 
 
-mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, ci_probs(0.99)), col="red")
+#This method is called the percentile based method.
 ```
 
 __Function Syntax__
@@ -162,7 +165,66 @@ bar(3)
 ```
 
 
-### New R 4.1 language features: Native pipe `|>` and lambdas `\(args){body}`
+### Using normal model to get interval
+
+```{r}
+ggplot(bootstrap_means) + aes(x=mean_year) + 
+  geom_histogram(aes(y=..density..), center=0, binwidth=1) + #Changed count to density on the y-axis
+  geom_function(fun=. %>% dnorm(mean=mean(bootstrap_means$mean_year), 
+                                sd=sd(bootstrap_means$mean_year)), col="red") + #Using only "dnorm" will give us the standard normal density curve, so we write a function using a pipe that will give us the curve that matches our data. The function slightly modifies dnorm by giving it a specific mean and standard deviation. 
+  xlim(1985, 2005)
+```
+
+Instead of using the histogram to find our quantiles we will use the density curve.
+
+```{r}
+ci_probs(0.95) %>% qnorm(mean=mean(bootstrap_means$mean_year), 
+                                sd=sd(bootstrap_means$mean_year))
+#This code looks up the quantiles from the "qnorm" data (qnorm for Quantile normal) given a specific mean and standard deviation. In this case, using the bootstrap_means data. 
+ci_probs(0.95) %>% quantile(bootstrap_means$mean_year, .)
+
+#By default the pipe function inserts piped data to the first argument in the piped function. By using magrittr we can tell the pipe to place the data in a specific location by using a "." 
+level = 0.95
+mean_hist + geom_vline(xintercept = ci_probs(level) %>% 
+                         qnorm(mean=mean(bootstrap_means$mean_year), 
+                               sd=sd(bootstrap_means$mean_year)), 
+                       col="purple") + 
+  geom_vline(xintercept = quantile(bootstrap_means$mean_year, ci_probs(level)), col="red")
+
+#This graph has the quantiles computed by the normal based method in purple, and the percentile based method in red. Even though they are not the exact same values, they are effectively the same.
+
+#YOU CAN ONLY USE THE NORMAL BASED METHOD IF YOUR DATA FITS A STANDARD BELL CURVE DISTRIBUTION, IN CASES WHERE YOUR DATA DO NOT FIT A BELL CURVE YOU CAN USE THE PERCENTILE BASED METHOD. (Didn't mean to caps lock oops. Sorry!)
+```
+
+### Theory-based interval using `t.test`
+
+```{r}
+t.test(pennies_sample$year, level=0.95)
+
+#Using a t-test and giving it the original data, you can compute a 95% confidence interval. This can be changed by changing the "level" parameter in the t.test() function.
+
+#The previous approach isn't very "tidy", by using the with() function we can call specific columns in a dataframe. 
+
+with(pennies_sample, t.test(year)) #This code accomplishes the same thing as the previous t.test() function in a "tidy"-er manner. In this case we refer to the columns directly by name instead of using the "$" operator.
+
+#Using the "magrittr" pipe library, instead of using "%>%", we use the exposition "%$%". It tells the function following the exposition to look in the left side for data. 
+
+pennies %$% t.test(year) #This code accomplishes the same thing as the previous two t-tests with less characters. 
+
+bootstrap_means %$% qnorm(ci_probs(0.95), mean=mean(mean_year), sd=sd(mean_year)) #This accomplishes the same thing as Line 183 but uses the exposition instead of the "$" operator. 
+```
+
+<div class="bg-warning"> warning </div>
+
+
+Did people exposed to the "yawn" treatment yawn more or less than the people exposed to the control group of people.
+
+16 people in the control group
+34 people in the experimental group
+*The sample sizes are not even*
+
+We will look at this question using proportions. In the control group, 25% of people in the group yawned, while in the experimental group, 29.4% of people yawned. We wanna answer the question of whether or not the difference of 4.4% is big. We will use Bootstrapping to answer this question.
+
 
 ### The `mythbusters_yawn` question
 
