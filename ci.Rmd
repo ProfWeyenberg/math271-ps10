@@ -311,7 +311,7 @@ permute_yawn %>% summarize(sd=sd(p_diff), pval=mean(abs(p_diff) > 0.0445), qnorm
 
 1. Data set `openintro::solar`. Filter the data to `location == "Haight_Ashbury"` only. Make a histogram or density plot of the `kwh` power production variable.
 
-2. Give the average power production in the data set, and then use bootstrapping to provide a 95% confidence interval for mean daily power production of the solar array. You may use either a percentile or normal based method for obtaining the interval.
+2. Give the average power production in the data set, and then use bootstrapping to provide a 95% confidence interval for mean daily power production of the solar array. Produce two intervals, using the percentile and Normal based methods. 
 
 3. In power production, consistency can be as important of a consideration as average output. Estimate the standard deviation (`sd`) for the power production. Then use bootstrapping to provide a 95% confidence interval for the standard deviation of the array's daily power production.
 
@@ -321,9 +321,9 @@ Think carefully about how you want to structure the data before doing the bootst
 
 4. Investigate the `openintro::helium` data, make a data visualization comparing the two types of footballs. (boxplots, violin plots, overlapping density plots are all possibilities)
 
-5. Provide a point estimate of the difference in the means between between the air and helium filled footballs. Then use bootstrapping to provide a 95% confidence interval estimate of the difference in the average distance traveled the two types of ball.
+5. Provide a point estimate of the difference in the means between between the air and helium filled footballs. Then use bootstrapping to provide a 95% confidence interval estimate of the difference in the average distance traveled the two types of ball. You may use either a percentile or normal based method for obtaining the interval.
 
-6. Suppose instead of comparing the mean distance traveled, we were interested in comparing the amount of variability in the distance. A _variance ratio_ is one way of comparing the variability of two groups. Compute the variance (`var`) of one ball type and divide it by the variance of the other type. Use bootstrapping to provide a 95% confidence interval for the value of the variance ratio. 
+6. Suppose instead of comparing the mean distance traveled, we were interested in comparing the amount of variability in the distance. A _variance ratio_ is one way of comparing the variability of two groups. Compute the variance (`var`) of one ball type and divide it by the variance of the other type. Use bootstrapping to provide a 95% confidence interval for the value of the variance ratio.
 
 
 
