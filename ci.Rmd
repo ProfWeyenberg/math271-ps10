@@ -198,36 +198,45 @@ ci_probs(0.95) %>% qnorm(mean=mean(bootstrap_means$mean_year),
                                 sd=sd(bootstrap_means$mean_year))
 #This code looks up the quantiles from the "qnorm" data (qnorm for Quantile normal) given a specific mean and standard deviation. In this case, using the bootstrap_means data. 
 ci_probs(0.95) %>% quantile(bootstrap_means$mean_year, .)
+```
 
-#By default the pipe function inserts piped data to the first argument in the piped function. By using magrittr we can tell the pipe to place the data in a specific location by using a "." 
+
+By default the pipe function inserts piped data to the first argument in the piped function. By using magrittr we can tell the pipe to place the data in a specific location by using a "." 
+
+```{r}
 level = 0.95
 mean_hist + geom_vline(xintercept = ci_probs(level) %>% 
                          qnorm(mean=mean(bootstrap_means$mean_year), 
                                sd=sd(bootstrap_means$mean_year)), 
                        col="purple") + 
   geom_vline(xintercept = quantile(bootstrap_means$mean_year, ci_probs(level)), col="red")
-
-#This graph has the quantiles computed by the normal based method in purple, and the percentile based method in red. Even though they are not the exact same values, they are effectively the same.
-
-#YOU CAN ONLY USE THE NORMAL BASED METHOD IF YOUR DATA FITS A STANDARD BELL CURVE DISTRIBUTION, IN CASES WHERE YOUR DATA DO NOT FIT A BELL CURVE YOU CAN USE THE PERCENTILE BASED METHOD. (Didn't mean to caps lock oops. Sorry!)
 ```
+
+This graph has the quantiles computed by the normal based method in purple, and the percentile based method in red. Even though they are not the exact same values, they are effectively the same.
+
+YOU CAN ONLY USE THE NORMAL BASED METHOD IF YOUR DATA FITS A STANDARD BELL CURVE DISTRIBUTION, IN CASES WHERE YOUR DATA DO NOT FIT A BELL CURVE YOU CAN USE THE PERCENTILE BASED METHOD. (Didn't mean to caps lock oops. Sorry!)
 
 ### Theory-based interval using `t.test`
 
+
+Using a t-test and giving it the original data, you can compute a 95% confidence interval. This can be changed by changing the "level" parameter in the t.test() function.
+
 ```{r}
 t.test(pennies_sample$year, level=0.95)
+```
 
-#Using a t-test and giving it the original data, you can compute a 95% confidence interval. This can be changed by changing the "level" parameter in the t.test() function.
+The previous approach isn't very "tidy", by using the with() function we can call specific columns in a dataframe without using `$` repeatedly. 
 
-#The previous approach isn't very "tidy", by using the with() function we can call specific columns in a dataframe. 
-
+```{r}
 with(pennies_sample, t.test(year)) #This code accomplishes the same thing as the previous t.test() function in a "tidy"-er manner. In this case we refer to the columns directly by name instead of using the "$" operator.
+```
 
-#Using the "magrittr" pipe library, instead of using "%>%", we use the exposition "%$%". It tells the function following the exposition to look in the left side for data. 
+Using the "magrittr" pipe library, instead of using "%>%", we use the exposition "%$%". It tells the function following the exposition to look in the left side for data. 
 
-pennies %$% t.test(year) #This code accomplishes the same thing as the previous two t-tests with less characters. 
+```{r}
+pennies %$% t.test(year) #This code accomplishes the same thing as the previous two t-tests in a more pipeline-style syntax. 
 
-bootstrap_means %$% qnorm(ci_probs(0.95), mean=mean(mean_year), sd=sd(mean_year)) #This accomplishes the same thing as Line 183 but uses the exposition instead of the "$" operator. 
+bootstrap_means %$% qnorm(ci_probs(0.95), mean=mean(mean_year), sd=sd(mean_year)) #This looks up the normal confidence interval values using the magrittr exposition syntax instead of the "$" operator. 
 ```
 
 ### The `mythbusters_yawn` question
