@@ -17,6 +17,7 @@ library(ggplot2)
 
 ```
 
+## Bootstrapping setup
 
 ```{r bootstrap}
 
@@ -28,7 +29,9 @@ bootstrap_means <- rerun(1000, pennies_sample %>% slice_sample(prop=1, replace=T
   bind_group(.id="sample") %>% 
   summarize(mean_year= mean(year))
 
-(mean_hist <- ggplot(bootstrap_means) + aes(x=mean_year) + geom_histogram(center=0, binwidth=1) + 
+(mean_hist <- ggplot(bootstrap_means) + 
+    aes(x=mean_year) + 
+    geom_histogram(center=0, binwidth=1) + 
   xlim(1985, 2005))
 ```
  
@@ -50,15 +53,20 @@ A method to represent the upper bound:
 level = 0.99 
 
 quantile(bootstrap_means$mean_year, level)
+```
 
+```{r}
 mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, level), col="red")
+```
 
 
+```{r}
 ## this was a side discussion about using max for confidence interval -----------
 quantile(bootstrap_means$mean_year, 1.0)
 max(bootstrap_means$mean_year)
 ## ----------
 ```
+
 When building confidence intervals, we are responsible for developing confidence levels, in the example above the confidence level is set to .99. This means that 99% of the data falls below this point, and 1% of the data falls above this point.
 
 NOTE: The more we increase the upper bound of our confidence interval, the less precise our statements as we put an increasing amount of data on the left side of the upper bound. 
@@ -145,7 +153,8 @@ quantile(bootstrap_means$mean_year, ci_probs(0.90) )
 #This method is called the percentile based method.
 ```
 
-__Function Syntax__
+##### Function Syntax 
+
 ```{r}
 foo <- function(x) x^2
 foo(3)
@@ -166,18 +175,23 @@ bar(3)
 
 ```
 
+Anonymous functions are most useful as arguments to other functions.
 
 ### Using normal model to get interval
 
+Here I use an anonymous pipeline as an argument to `geom_function`, which plots functions. We wish to plot a normal density curve, but with some arguments filled in with computed values from elsewhere.
+
 ```{r}
 ggplot(bootstrap_means) + aes(x=mean_year) + 
-  geom_histogram(aes(y=..density..), center=0, binwidth=1) + #Changed count to density on the y-axis
+  # Changed count to density on the y-axis
+  geom_histogram(aes(y=..density..), center=0, binwidth=1) + 
   geom_function(fun=. %>% dnorm(mean=mean(bootstrap_means$mean_year), 
-                                sd=sd(bootstrap_means$mean_year)), col="red") + #Using only "dnorm" will give us the standard normal density curve, so we write a function using a pipe that will give us the curve that matches our data. The function slightly modifies dnorm by giving it a specific mean and standard deviation. 
+                                sd=sd(bootstrap_means$mean_year)), col="red") + 
+  #Using only "dnorm" will give us the standard normal density curve, so we write a function using a pipe that will give us the curve that matches our data. The function slightly modifies dnorm by giving it a specific mean and standard deviation. 
   xlim(1985, 2005)
 ```
 
-Instead of using the histogram to find our quantiles we will use the density curve.
+Instead of using the histogram to find our quantiles we can use the normal density curve. The `qnorm` function will do the theory-based version of what `quantile` does for a data set.
 
 ```{r}
 ci_probs(0.95) %>% qnorm(mean=mean(bootstrap_means$mean_year), 
@@ -221,13 +235,13 @@ bootstrap_means %$% qnorm(ci_probs(0.95), mean=mean(mean_year), sd=sd(mean_year)
 
 Did people exposed to the "yawn" treatment yawn more or less than the people exposed to the control group of people.
 
-16 people in the control group
-34 people in the experimental group
-*The sample sizes are not even*
+16 people in the control group  
+34 people in the experimental group  
+*The sample sizes are not even*  
 
 We will look at this question using proportions. In the control group, 25% of people in the group yawned, while in the experimental group, 29.4% of people yawned. We wanna answer the question of whether or not the difference of 4.4% is big. We will use Bootstrapping to answer this question.
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 mythbusters_yawn %>% 
   group_by(group) %>% 
   count(yawn) %>% 
@@ -259,7 +273,7 @@ boot_diffs %>% summarize(mean(abs(p_diff) > 0.0445))
 
 ### Within group bootstrapping
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 
 mythbusters_yawn %>% slice_sample(prop=1, replace = TRUE) %>% count(group)
 
@@ -277,7 +291,7 @@ group_boot %>% summarise(quantile(p_diff, ci_probs(0.95)))
 
 
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 permute_yawn <- rerun(200, mythbusters_yawn %>% mutate(yawn=sample(yawn, replace = TRUE)) %>% prop_diff_stat) %>% 
   unlist %>% data.frame(p_diff=.)
 
@@ -292,16 +306,20 @@ permute_yawn %>% summarize(p=ci_probs(0.95), bound=quantile(p_diff,p))
 permute_yawn %>% summarize(sd=sd(p_diff), pval=mean(abs(p_diff) > 0.0445), qnorm(ci_probs(0.95),0.0445,sd))
 ```
 
+
+## Exercises
+
 1. Data set `openintro::solar`. Filter the data to `location == "Haight_Ashbury"` only. Make a histogram or density plot of the `kwh` power production variable.
 
 2. Give the average power production in the data set, and then use bootstrapping to provide a 95% confidence interval for mean daily power production of the solar array. You may use either a percentile or normal based method for obtaining the interval.
 
 3. In power production, consistency can be as important of a consideration as average output. Estimate the standard deviation (`sd`) for the power production. Then use bootstrapping to provide a 95% confidence interval for the standard deviation of the array's daily power production.
 
+--------------
 
 Think carefully about how you want to structure the data before doing the bootstrap resampling in the two-sample questions below. We want to simulate a new sample of separate kicks of both types of ball. Simply resampling rows from the data set doesn't quite capture this using the data in the shape provided. 
 
-4. Two sample difference of means. Investigate the `openintro::helium` data, make a data visualization comparing the two types of footballs. (boxplots, violin plots, overlapping density plots are all possibilities) 
+4. Investigate the `openintro::helium` data, make a data visualization comparing the two types of footballs. (boxplots, violin plots, overlapping density plots are all possibilities)
 
 5. Provide a point estimate of the difference in the means between between the air and helium filled footballs. Then use bootstrapping to provide a 95% confidence interval estimate of the difference in the average distance traveled the two types of ball.
 
@@ -340,9 +358,13 @@ qnorm(two_tail(0.95)) * (15.175/sqrt(50)) + 1995.44
 qt(two_tail(0.95), 49) * (15.175/sqrt(50)) + 1995.44
 ```
 
-__Stats important side note:__
-Robustness: how much does an individual data point impact the data set
 
-The min and maximum values of a data set are not very robust data points.
+##### Stats side note
+
+Robustness: how much does an individual data point impact a summary statistic.
+
+The min and maximum values of a data set are not very robust data points. They can change an arbitrarily large amount if a single data point becomes very large/small.
+
+The median is a very robust statistic, in order to change the median significantly you must alter half of the data values.
 
 
