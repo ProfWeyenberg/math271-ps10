@@ -2,7 +2,9 @@
 title: "Confidence Intervals"
 author: "Math 271"
 date: "3/22/2022"
-output: html_document
+output: 
+  html_document:
+    css: lab.css
 ---
 
 ```{r setup, include=FALSE}
@@ -214,7 +216,7 @@ pennies %$% t.test(year) #This code accomplishes the same thing as the previous 
 bootstrap_means %$% qnorm(ci_probs(0.95), mean=mean(mean_year), sd=sd(mean_year)) #This accomplishes the same thing as Line 183 but uses the exposition instead of the "$" operator. 
 ```
 
-<div class="bg-warning"> warning </div>
+### The `mythbusters_yawn` question
 
 
 Did people exposed to the "yawn" treatment yawn more or less than the people exposed to the control group of people.
@@ -225,13 +227,85 @@ Did people exposed to the "yawn" treatment yawn more or less than the people exp
 
 We will look at this question using proportions. In the control group, 25% of people in the group yawned, while in the experimental group, 29.4% of people yawned. We wanna answer the question of whether or not the difference of 4.4% is big. We will use Bootstrapping to answer this question.
 
+```{r}
+mythbusters_yawn %>% 
+  group_by(group) %>% 
+  count(yawn) %>% 
+  mutate(prop=proportions(n)) %>% 
+  pivot_wider(names_from = "yawn", values_from = c("n", "prop"))
 
-### The `mythbusters_yawn` question
+mythbusters_yawn %>% group_by(group) %>% summarize(p_yawn=mean(yawn=="yes")) %$% diff(p_yawn)
+
+prop_diff_stat <- . %>% group_by(group) %>% summarize(p_yawn=mean(yawn=="yes")) %$% diff(p_yawn)
+
+mythbusters_yawn %>% prop_diff_stat
+
+mythbusters_yawn %>% slice_sample(prop=1,replace=TRUE) %>% prop_diff_stat
+
+boot_diffs <- rerun(200, mythbusters_yawn %>% slice_sample(prop=1,replace=TRUE) %>% prop_diff_stat) %>% 
+  unlist %>% 
+  data.frame(p_diff=.)
+
+ggplot(boot_diffs) + 
+  aes(x=p_diff) + 
+  geom_density() + 
+  geom_vline(xintercept=0.044, col="red")
+
+boot_diffs %>% summarize(p=ci_probs(0.95), q=quantile(p_diff, p))
+boot_diffs %>% summarize(mean(abs(p_diff) > 0.0445))
+```
+
+
+
+### Within group bootstrapping
+
+```{r}
+
+mythbusters_yawn %>% slice_sample(prop=1, replace = TRUE) %>% count(group)
+
+group_boot <- rerun(200, mythbusters_yawn %>% group_by(group) %>% slice_sample(prop=1, replace = TRUE) %>% prop_diff_stat) %>% unlist %>% data.frame(p_diff=.)
+
+group_boot %>% summarise(quantile(p_diff, ci_probs(0.95)))
+```
+
+
+
+
+
 
 ### Permutation test
 
 
 
+```{r}
+permute_yawn <- rerun(200, mythbusters_yawn %>% mutate(yawn=sample(yawn, replace = TRUE)) %>% prop_diff_stat) %>% 
+  unlist %>% data.frame(p_diff=.)
+
+ggplot(permute_yawn) + 
+  aes(x=p_diff) + 
+  geom_density(adjust=1) + 
+  geom_vline(xintercept=0.044, col="red") + 
+  geom_vline(xintercept=quantile(permute_yawn$p_diff,ci_probs(0.95)))
+
+permute_yawn %>% summarize(p=ci_probs(0.95), bound=quantile(p_diff,p))
+
+permute_yawn %>% summarize(sd=sd(p_diff), pval=mean(abs(p_diff) > 0.0445), qnorm(ci_probs(0.95),0.0445,sd))
+```
+
+1. Data set `openintro::solar`. Filter the data to `location == "Haight_Ashbury"` only. Make a histogram or density plot of the `kwh` power production variable.
+
+2. Give the average power production in the data set, and then use bootstrapping to provide a 95% confidence interval for mean daily power production of the solar array. You may use either a percentile or normal based method for obtaining the interval.
+
+3. In power production, consistency can be as important of a consideration as average output. Estimate the standard deviation (`sd`) for the power production. Then use bootstrapping to provide a 95% confidence interval for the standard deviation of the array's daily power production.
+
+
+Think carefully about how you want to structure the data before doing the bootstrap resampling in the two-sample questions below. We want to simulate a new sample of separate kicks of both types of ball. Simply resampling rows from the data set doesn't quite capture this using the data in the shape provided. 
+
+4. Two sample difference of means. Investigate the `openintro::helium` data, make a data visualization comparing the two types of footballs. (boxplots, violin plots, overlapping density plots are all possibilities) 
+
+5. Provide a point estimate of the difference in the means between between the air and helium filled footballs. Then use bootstrapping to provide a 95% confidence interval estimate of the difference in the average distance traveled the two types of ball.
+
+6. Suppose instead of comparing the mean distance traveled, we were interested in comparing the amount of variability in the distance. A _variance ratio_ is one way of comparing the variability of two groups. Compute the variance (`var`) of one ball type and divide it by the variance of the other type. Use bootstrapping to provide a 95% confidence interval for the value of the variance ratio. 
 
 
 
