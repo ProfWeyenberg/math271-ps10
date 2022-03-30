@@ -23,7 +23,6 @@ jobs:
           reqs <- grep("^[^#]", grep("\\S", trimws(reqs), value=TRUE), value=TRUE)
           core <- c("any::sessioninfo", "any::testthat", "any::rmarkdown")
           pak::lockfile_create(c(core, reqs), lockfile=".github/pkg.lock")
-          pak::lockfile_install(".github/pkg.lock")
       - name: cache R packages
         uses: pat-s/always-upload-cache@v2.1.5
         with: 

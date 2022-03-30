@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
 library(tidyverse)
 library(magrittr)
 library(moderndive)
@@ -87,12 +87,13 @@ level = 0.90
 quantile(bootstrap_means$mean_year, 1 - level)
 mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, 1 - level), col="red")
 ```
+
 Note: A lower bound confidence level of .90 means 90% of data on right and 10% on the left. A way to do this is by taking the compliment (1 - upper bound) of the upper bound interval of .90.
 
 
-### How to compute two-sided lookups `(1-level)/2` and `(1+level)/2`
+### How to compute two-sided probabilities `(1-level)/2` and `(1+level)/2`
 
-Now: (e.g.) 90% in the middle, and 10% on the "outside". (split it up evenly 5% on each side)
+Now: (e.g.) 90% confidence means 90% in the middle, and 10% on the "outside". (split it up evenly 5% on each side)
 
 90% confidence level -> 10% outside -> (even split) 5% on bottom and 5% on the top
 
@@ -109,34 +110,32 @@ mean_hist + geom_vline(xintercept = quantile(bootstrap_means$mean_year, level), 
 
 ### Digression: [Anonymous] Functions, pipelines 
 
-Here we are creating a function that is able to compute a confidence interval given a level (e.g. given .90, it will produce .05 and .95):
+Here we are creating a function that will return the quantiles to lookup when producing a two-sided confidence interval for a given `level` (e.g. given .90, it will produce .05 and .95):
 ```{r}
 
-#less efficient way:
+#fully explicit efficient way:
 ci_probs <- function(level){
 lower = (1-level) / 2
 upper = (1+level) / 2
 c(lower, upper)
 }
 
-#simplified efficient method:
+# a small algebraic modification
 ci_probs <- function(level) {
   c(1 + (-1) * level, 
     1 + (+1) * level) / 2
 }
 
-#Alternative method:
+# a further simplification of the last way
 ci_probs <- function(level){
   (1 + c(-1,1) * level) / 2
 }
 
-level=0.9
-((level * c(-1,1) ) + 1) / 2
-
-#Another alt. method using magrittr package:
+# alternative implementation using pipes
 ci_probs <- function(level){
   level %>% multiply_by(c(-1,1)) %>% add(1) %>% divide_by(2)
 }
+
 # example showing how using a period (.) with a pipeline creates a function:
 ci_probs <- . %>% multiply_by(c(-1,1)) %>% add(1) %>% divide_by(2)
 
@@ -214,7 +213,7 @@ mean_hist + geom_vline(xintercept = ci_probs(level) %>%
 
 This graph has the quantiles computed by the normal based method in purple, and the percentile based method in red. Even though they are not the exact same values, they are effectively the same.
 
-YOU CAN ONLY USE THE NORMAL BASED METHOD IF YOUR DATA FITS A STANDARD BELL CURVE DISTRIBUTION, IN CASES WHERE YOUR DATA DO NOT FIT A BELL CURVE YOU CAN USE THE PERCENTILE BASED METHOD. (Didn't mean to caps lock oops. Sorry!)
+You can only use the normal based method if your data fits a standard bell curve distribution, in cases where your data do not fit a bell curve, you can use the percentile based method. (Didn't mean to caps lock oops. Sorry!)
 
 ### Theory-based interval using `t.test`
 
@@ -239,7 +238,7 @@ pennies %$% t.test(year) #This code accomplishes the same thing as the previous 
 bootstrap_means %$% qnorm(ci_probs(0.95), mean=mean(mean_year), sd=sd(mean_year)) #This looks up the normal confidence interval values using the magrittr exposition syntax instead of the "$" operator. 
 ```
 
-### The `mythbusters_yawn` question
+## The `mythbusters_yawn` question
 
 
 Did people exposed to the "yawn" treatment yawn more or less than the people exposed to the control group of people.
@@ -248,77 +247,112 @@ Did people exposed to the "yawn" treatment yawn more or less than the people exp
 34 people in the experimental group  
 *The sample sizes are not even*  
 
-We will look at this question using proportions. In the control group, 25% of people in the group yawned, while in the experimental group, 29.4% of people yawned. We wanna answer the question of whether or not the difference of 4.4% is big. We will use Bootstrapping to answer this question.
+We will look at this question using _proportions_. In the control group, 25% of people in the group yawned, while in the experimental group, 29.4% of people yawned. We wanna answer the question of whether or not the difference of 4.4% is big. We will use Bootstrapping to answer this question. 
 
-```{r, eval=FALSE, include=FALSE}
-mythbusters_yawn %>% 
-  group_by(group) %>% 
-  count(yawn) %>% 
-  mutate(prop=proportions(n)) %>% 
-  pivot_wider(names_from = "yawn", values_from = c("n", "prop"))
-
-mythbusters_yawn %>% group_by(group) %>% summarize(p_yawn=mean(yawn=="yes")) %$% diff(p_yawn)
-
-prop_diff_stat <- . %>% group_by(group) %>% summarize(p_yawn=mean(yawn=="yes")) %$% diff(p_yawn)
-
-mythbusters_yawn %>% prop_diff_stat
-
-mythbusters_yawn %>% slice_sample(prop=1,replace=TRUE) %>% prop_diff_stat
-
-boot_diffs <- rerun(200, mythbusters_yawn %>% slice_sample(prop=1,replace=TRUE) %>% prop_diff_stat) %>% 
-  unlist %>% 
-  data.frame(p_diff=.)
-
-ggplot(boot_diffs) + 
-  aes(x=p_diff) + 
-  geom_density() + 
-  geom_vline(xintercept=0.044, col="red")
-
-boot_diffs %>% summarize(p=ci_probs(0.95), q=quantile(p_diff, p))
-boot_diffs %>% summarize(mean(abs(p_diff) > 0.0445))
+```{r}
+mythbusters_yawn %>% count(group,yawn)
+mythbusters_yawn %>% count(group,yawn) %>% 
+  group_by(group) %>% # Group the data by group, this doesn't change the data.
+  mutate(prop=proportions(n)) # Compute the proportions and add them to a column "prop". 
 ```
 
+Alternatively, group the data by the "group", then create a summary table computing the mean number of people which responded with a yawn in each group. This process is done by changing the response variable into a binary response either True or False (1 or 0), then adding up the binary responses and dividing by the total number of observations. 
+
+```{r}
+mythbusters_yawn %>% group_by(group) %>% summarize(p_yawn = mean(yawn=="yes"))
+
+# Intermediate step to understand why the above works
+mythbusters_yawn %>% mutate(yawn_yes = (yawn=="yes"))
+
+
+mythbusters_yawn %>% group_by(group) %>% summarize(p_yawn = mean(yawn=="yes")) %>% summarize(p_diff = diff(p_yawn)) # Diff is a function which computes the differences between one element and the next. 
+
+```
+
+Based on the output we can see that there is a difference of 4.4% between the two groups.
+
+Use bootstrapping to investigate the variability of the `p_diff` statistic.
+
+
+```{r}
+mythbusters_yawn %>% slice_sample(prop=1, replace=TRUE) %>% group_by(group) %>% summarize(p_yawn = mean(yawn=="yes")) %>% summarize(p_diff = diff(p_yawn))
+```
+
+Looking at the output of the previous chunk after running it multiple times, the `p_diff` statistic jumps around, which makes it clear that we are not able to accurately predict the output based on the small sample size of the dataset.
+
+Rerunning the previous code 
+
+```{r}
+diff_p_stat <- . %>% group_by(group) %>% summarize(p_yawn = mean(yawn=="yes")) %>% summarize(p_diff = diff(p_yawn)) # This function calculates the p_diff statistic.
+```
+
+The function can be applied to either a singular dataset, or a bootstrapped sample.
+
+```{r}
+diff_p_stat(mythbusters_yawn) # Single dataset
+mythbusters_yawn %>% diff_p_stat # Same as previous line of code, except using pipe.
+
+mythbusters_yawn %>% slice_sample(prop=1, replace=TRUE) %>% diff_p_stat # Bootstrapped sample.
+
+boot_p_diffs <- rerun(2000, { 
+  mythbusters_yawn %>% slice_sample(prop=1, replace=TRUE) %>% diff_p_stat
+  }) %>% bind_rows
+
+glimpse(boot_p_diffs)
+```
+
+Inspection of our results using a density plot.
+
+```{r}
+ggplot(boot_p_diffs) + aes(x=p_diff) + geom_density() + 
+  geom_vline(xintercept=0.044, col="red")
+```
+
+Looking at the plot, we can see our estimate of the difference of 4.4% is close to zero in the grand scheme of things. Our estimate can be off by **up to 25%**, which is quite large on the scale of the numbers we are talking about in this instance. 
 
 
 ### Within group bootstrapping
 
-```{r, eval=FALSE, include=FALSE}
+```{r}
+mythbusters_yawn %>% count(group,yawn) %>% group_by(group) %>% summarize(sum(n))
 
-mythbusters_yawn %>% slice_sample(prop=1, replace = TRUE) %>% count(group)
-
-group_boot <- rerun(200, mythbusters_yawn %>% group_by(group) %>% slice_sample(prop=1, replace = TRUE) %>% prop_diff_stat) %>% unlist %>% data.frame(p_diff=.)
-
-group_boot %>% summarise(quantile(p_diff, ci_probs(0.95)))
+mythbusters_yawn %>% slice_sample(prop=1, replace=TRUE) %>% count(group,yawn) %>% group_by(group) %>% summarize(sum(n))
 ```
 
+By treating the sample sizes as being fixed, we can hope to explain a bit more of the variability we see in the proportion. In our basic resampling scheme, we can end up with different numbers of people in the treatment and control groups. The sum of the two groups will always end up being 50 however. In order to keep the sample sizes fixed throughout the resampling process; we can add an extra `group_by(group)` to the pipe to make the `slice_sample()` work within the grouping. The count of yawn responses will change from sample to sample, however the total number of people in each group will remain the same. 
 
 
+```{r}
+mythbusters_yawn %>% 
+  group_by(group) %>% # This extra group_by() function will make the resampling process adhere to the set number of people in each group (In this case, 16 in control group and 32 in the experimental group) 
+  slice_sample(prop=1, replace=TRUE) %>% count(group,yawn) %>% group_by(group) %>% summarize(sum(n))
 
+mythbusters_yawn %>% group_by(group) %>% slice_sample(prop=1, replace=TRUE) %>% count(group,yawn)
 
-
-### Permutation test
-
-
-
-```{r, eval=FALSE, include=FALSE}
-permute_yawn <- rerun(200, mythbusters_yawn %>% mutate(yawn=sample(yawn, replace = TRUE)) %>% prop_diff_stat) %>% 
-  unlist %>% data.frame(p_diff=.)
-
-ggplot(permute_yawn) + 
-  aes(x=p_diff) + 
-  geom_density(adjust=1) + 
-  geom_vline(xintercept=0.044, col="red") + 
-  geom_vline(xintercept=quantile(permute_yawn$p_diff,ci_probs(0.95)))
-
-permute_yawn %>% summarize(p=ci_probs(0.95), bound=quantile(p_diff,p))
-
-permute_yawn %>% summarize(sd=sd(p_diff), pval=mean(abs(p_diff) > 0.0445), qnorm(ci_probs(0.95),0.0445,sd))
 ```
+
+```{r}
+boot_group_p_diffs <- rerun(2000, { 
+  mythbusters_yawn %>% group_by(group) %>% slice_sample(prop=1, replace=TRUE) %>% diff_p_stat
+  }) %>% bind_rows
+
+ggplot(boot_group_p_diffs) + aes(x=p_diff) + geom_density()
+```
+
+Changing the resampling process to use fixed group sample sizes did not change the overall variability significantly, however it did eliminate the possibility of variability being introduced due to different numbers of people in each group across different resamples. Our CIs remain decently wide. 
+
+```{r}
+boot_p_diffs %>% summarize(p=ci_probs(0.95), bounds=quantile(p_diff, p))
+
+boot_group_p_diffs %>% summarize(p=ci_probs(0.95), bounds=quantile(p_diff, p))
+
+```
+
 
 
 ## Exercises
 
-1. Data set `openintro::solar`. Filter the data to `location == "Haight_Ashbury"` only. Make a histogram or density plot of the `kwh` power production variable.
+1. Data set `openintro::solar`. Filter the data to `location == "Haight_Ashbury"` only and use the filtered data in the rest of these problems. Make a histogram or density plot of the `kwh` power production variable.
 
 2. Give the average power production in the data set, and then use bootstrapping to provide a 95% confidence interval for mean daily power production of the solar array. Produce two intervals, using the percentile and Normal based methods. 
 
@@ -333,39 +367,6 @@ Think carefully about how you want to structure the data before doing the bootst
 5. Provide a point estimate of the difference in the means between between the air and helium filled footballs. Then use bootstrapping to provide a 95% confidence interval estimate of the difference in the average distance traveled the two types of ball. You may use either a percentile or normal based method for obtaining the interval.
 
 6. Suppose instead of comparing the mean distance traveled, we were interested in comparing the amount of variability in the distance. A _variance ratio_ is one way of comparing the variability of two groups. Compute the variance (`var`) of one ball type and divide it by the variance of the other type. Use bootstrapping to provide a 95% confidence interval for the value of the variance ratio.
-
-
-
-```{r, eval=FALSE, include=FALSE, error=TRUE}
-penny_means %>% summarize(p=c(0.025, 0.975), quantile(mean_year,p))
-
-t.test(pennies_sample$year)
-with(pennies_sample, t.test(year))
-pennies_sample %>% with(t.test(year))
-pennies_sample %$% t.test(year)
-
-pennies_sample %>% summarize(mean(year), sd(year), n())
-
-(1 + 0.95)/2
-(1 - 0.95)/2
-
-(0.95 * c(-1, 1) + 1)/2
-
-two_tail <- . %>% multiply_by(c(-1,1)) %>% add(1) %>% divide_by(2) 
-two_tail <- function(x){(x*c(-1,1) + 1)/2}
-two_tail <- \(x)(x*c(-1,1) + 1 )/2
-two_tail <- . %>% {(.*c(-1,1) + 1)/2}
-
-
-two_tail(0.95)
-
-testthat::expect_equal(two_tail(0.95), (0.95 * c(-1, 1) + 1)/2 )
-
-
-qnorm(two_tail(0.95), mean=1995.44, sd=15.175/sqrt(50))
-qnorm(two_tail(0.95)) * (15.175/sqrt(50)) + 1995.44
-qt(two_tail(0.95), 49) * (15.175/sqrt(50)) + 1995.44
-```
 
 
 ##### Stats side note
